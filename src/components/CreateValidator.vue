@@ -35,6 +35,7 @@ const fm = reactive({
   memo: "",
   minSelfDelegation: "1",
   amount: "1000000LAKE",
+  fee: "0.005LAKE",
   delegatorAddress: "",
   validatorAddress: "",
   accountNumber: "12",
@@ -68,6 +69,10 @@ function toIntRate(rate: string) {
   return r.replace(/^0*/, "") + "0".repeat(fixLen);
 }
 
+function toUlakeAmount(amount: string) {
+  return Math.floor(parseFloat(amount) * 1000000).toString();
+}
+
 async function sign() {
   const createMsg = MsgCreateValidator.encode({
     description: {
@@ -90,7 +95,7 @@ async function sign() {
       value: fm.pubkey,
     }),
     value: {
-      amount: (parseInt(fm.amount) * 1000000).toString(),
+      amount: toUlakeAmount(fm.amount),
       denom: "ulake",
     },
   }).finish();
@@ -127,7 +132,7 @@ async function sign() {
       amount: [
         {
           denom: "ulake",
-          amount: "5000",
+          amount: toUlakeAmount(fm.fee),
         }
       ],
       gasLimit: new Uint32(200000).toBigInt(),
@@ -209,7 +214,7 @@ const signedTX = computed(() => {
             },
             value: {
               denom: "ulake",
-              amount: (parseInt(fm.amount) * 1000000).toString(),
+              amount: toUlakeAmount(fm.amount),
             },
           },
         ],
@@ -237,7 +242,7 @@ const signedTX = computed(() => {
           amount: [
             {
               denom: "ulake",
-              amount: "5000",
+              amount: toUlakeAmount(fm.fee),
             }
           ],
           gas_limit: "200000",
