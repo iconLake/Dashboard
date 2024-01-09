@@ -35,6 +35,7 @@ const fm = reactive({
   memo: "",
   minSelfDelegation: "1",
   amount: "1000000LAKE",
+  fee: "0.005LAKE",
   delegatorAddress: "",
   validatorAddress: "",
   accountNumber: "12",
@@ -68,6 +69,10 @@ function toIntRate(rate: string) {
   return r.replace(/^0*/, "") + "0".repeat(fixLen);
 }
 
+function toUlakeAmount(amount: string) {
+  return Math.floor(parseFloat(amount) * 1000000).toString();
+}
+
 async function sign() {
   const createMsg = MsgCreateValidator.encode({
     description: {
@@ -90,7 +95,7 @@ async function sign() {
       value: fm.pubkey,
     }),
     value: {
-      amount: (parseInt(fm.amount) * 1000000).toString(),
+      amount: toUlakeAmount(fm.amount),
       denom: "ulake",
     },
   }).finish();
@@ -124,7 +129,12 @@ async function sign() {
       },
     ],
     fee: {
-      amount: [],
+      amount: [
+        {
+          denom: "ulake",
+          amount: toUlakeAmount(fm.fee),
+        }
+      ],
       gasLimit: new Uint32(200000).toBigInt(),
       payer: "",
       granter: "",
@@ -204,7 +214,7 @@ const signedTX = computed(() => {
             },
             value: {
               denom: "ulake",
-              amount: (parseInt(fm.amount) * 1000000).toString(),
+              amount: toUlakeAmount(fm.amount),
             },
           },
         ],
@@ -229,7 +239,12 @@ const signedTX = computed(() => {
           },
         ],
         fee: {
-          amount: [],
+          amount: [
+            {
+              denom: "ulake",
+              amount: toUlakeAmount(fm.fee),
+            }
+          ],
           gas_limit: "200000",
           payer: "",
           granter: "",
@@ -311,13 +326,15 @@ async function broadcast() {
   </div>
   <div v-if="isKeplrReady" class="rs">
     <h4>Signed TX</h4>
-    <textarea cols="90" rows="66">{{ signedTX }}</textarea>
+    <textarea cols="90" rows="68">{{ signedTX }}</textarea>
     <div class="btns" v-if="broadStatus === 0 || broadStatus === 4">
       <button @click="broadcast">Broadcast</button>
     </div>
     <div class="msg" v-else-if="broadStatus === 1">Broading</div>
     <div class="msg" v-if="broadStatus === 2">TxHash: {{ txHash }}</div>
-    <div class="msg" v-if="broadStatus === 3">TxResult: {{ txResult }}</div>
+    <div class="msg" v-if="broadStatus === 3">
+      <pre>TxResult: {{ txResult }}</pre>
+    </div>
     <div class="msg" v-if="broadStatus === 4">Error: {{ txResult }}</div>
   </div>
 </template>
@@ -367,5 +384,8 @@ body {
 
 .msg {
   margin-top: 16px;
+  pre {
+    text-align: left;
+  }
 }
 </style>
