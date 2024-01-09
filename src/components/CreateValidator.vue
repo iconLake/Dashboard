@@ -124,7 +124,12 @@ async function sign() {
       },
     ],
     fee: {
-      amount: [],
+      amount: [
+        {
+          denom: "ulake",
+          amount: "5000",
+        }
+      ],
       gasLimit: new Uint32(200000).toBigInt(),
       payer: "",
       granter: "",
@@ -229,7 +234,12 @@ const signedTX = computed(() => {
           },
         ],
         fee: {
-          amount: [],
+          amount: [
+            {
+              denom: "ulake",
+              amount: "5000",
+            }
+          ],
           gas_limit: "200000",
           payer: "",
           granter: "",
@@ -311,13 +321,15 @@ async function broadcast() {
   </div>
   <div v-if="isKeplrReady" class="rs">
     <h4>Signed TX</h4>
-    <textarea cols="90" rows="66">{{ signedTX }}</textarea>
+    <textarea cols="90" rows="68">{{ signedTX }}</textarea>
     <div class="btns" v-if="broadStatus === 0 || broadStatus === 4">
       <button @click="broadcast">Broadcast</button>
     </div>
     <div class="msg" v-else-if="broadStatus === 1">Broading</div>
     <div class="msg" v-if="broadStatus === 2">TxHash: {{ txHash }}</div>
-    <div class="msg" v-if="broadStatus === 3">TxResult: {{ txResult }}</div>
+    <div class="msg" v-if="broadStatus === 3">
+      <pre>TxResult: {{ txResult }}</pre>
+    </div>
     <div class="msg" v-if="broadStatus === 4">Error: {{ txResult }}</div>
   </div>
 </template>
@@ -367,5 +379,8 @@ body {
 
 .msg {
   margin-top: 16px;
+  pre {
+    text-align: left;
+  }
 }
 </style>
