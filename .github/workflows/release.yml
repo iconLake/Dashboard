@@ -6,8 +6,17 @@ on:
   pull_request:
     branches: [ "release" ]
 
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
 jobs:
   release:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
     runs-on: ubuntu-latest
 
     strategy:
