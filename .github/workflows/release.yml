@@ -1,9 +1,7 @@
-name: Deploy static content to Pages
+name: Deploy to Github Pages
 
 on:
   push:
-    branches: [ "release" ]
-  pull_request:
     branches: [ "release" ]
   workflow_dispatch:
 
