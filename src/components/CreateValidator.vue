@@ -11,7 +11,14 @@ import {
   toHex,
 } from "@cosmjs/encoding";
 import { Window, Keplr, AccountData, BroadcastMode } from "@keplr-wallet/types";
-import { computed, onMounted, reactive, ref, watch } from "vue";
+import {
+  computed,
+  onBeforeUnmount,
+  onMounted,
+  reactive,
+  ref,
+  watch,
+} from "vue";
 import Long from "long";
 
 let keplr: Keplr;
@@ -55,12 +62,16 @@ async function init() {
   signer = (await keplr.getOfflineSigner(fm.chainId).getAccounts())[0];
   fm.delegatorAddress = signer.address;
   const res = await fetch(
-    `https://lcd.testnet.iconlake.com/cosmos/auth/v1beta1/accounts/${signer.address}`,
+    `https://lcd.testnet.iconlake.com/cosmos/auth/v1beta1/accounts/${signer.address}`
   ).then((e) => e.json());
   if (res.account) {
     fm.accountNumber = res.account.account_number;
     fm.sequence = res.account.sequence;
   }
+}
+
+function onKeplrChange() {
+  init();
 }
 
 function toIntRate(rate: string) {
@@ -129,12 +140,15 @@ async function sign() {
       },
     ],
     fee: {
-      amount: [
-        {
-          denom: "ulake",
-          amount: toUlakeAmount(fm.fee),
-        }
-      ],
+      amount:
+        toUlakeAmount(fm.fee) === "0"
+          ? []
+          : [
+              {
+                denom: "ulake",
+                amount: toUlakeAmount(fm.fee),
+              },
+            ],
       gasLimit: new Uint32(200000).toBigInt(),
       payer: "",
       granter: "",
@@ -154,7 +168,7 @@ async function sign() {
       preferNoSetFee: true,
       preferNoSetMemo: true,
       disableBalanceCheck: true,
-    },
+    }
   );
 
   signature.value = res.signature.signature;
@@ -164,6 +178,8 @@ async function sign() {
     authInfoBytes: authInfoBytes,
     signatures: [fromBase64(signature.value)],
   }).finish();
+
+  broadStatus.value = 0;
 }
 
 function isObject(v: any) {
@@ -172,6 +188,11 @@ function isObject(v: any) {
 
 onMounted(() => {
   init();
+  window.addEventListener("keplr_keystorechange", onKeplrChange);
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener("keplr_keystorechange", onKeplrChange);
 });
 
 watch(() => fm.chainId, init);
@@ -181,9 +202,9 @@ watch(
   () => {
     fm.validatorAddress = toBech32(
       "iconlakevaloper",
-      fromBech32(fm.delegatorAddress).data,
+      fromBech32(fm.delegatorAddress).data
     );
-  },
+  }
 );
 
 const signedTX = computed(() => {
@@ -239,12 +260,15 @@ const signedTX = computed(() => {
           },
         ],
         fee: {
-          amount: [
-            {
-              denom: "ulake",
-              amount: toUlakeAmount(fm.fee),
-            }
-          ],
+          amount:
+            toUlakeAmount(fm.fee) === "0"
+              ? []
+              : [
+                  {
+                    denom: "ulake",
+                    amount: toUlakeAmount(fm.fee),
+                  },
+                ],
           gas_limit: "200000",
           payer: "",
           granter: "",
@@ -254,18 +278,19 @@ const signedTX = computed(() => {
       signatures: [signature.value],
     },
     undefined,
-    2,
+    2
   );
 });
 
 const broadStatus = ref(0);
 const txHash = ref("");
 const txResult = ref("");
+const txResultMsg = ref("");
 
 async function broadcast() {
   broadStatus.value = 1;
   const txHashBytes = await keplr
-    .sendTx(fm.chainId, txBytes.value, "sync" as BroadcastMode)
+    .sendTx(fm.chainId, txBytes.value, "async" as BroadcastMode)
     .catch((e) => {
       console.error(e);
       broadStatus.value = 4;
@@ -276,19 +301,29 @@ async function broadcast() {
   }
   txHash.value = toHex(txHashBytes);
   broadStatus.value = 2;
-  const txRes = await fetch(
-    `https://lcd.testnet.iconlake.com/cosmos/tx/v1beta1/txs/${txHash.value}`,
-  )
-    .then((e) => e.json())
-    .catch((e) => {
-      console.error(e);
-      broadStatus.value = 4;
-      txResult.value = e.message;
-    });
+  let txRes;
+  let n = 0;
+  while (n++ < 10) {
+    txRes = await fetch(
+      `https://lcd.testnet.iconlake.com/cosmos/tx/v1beta1/txs/${txHash.value}`
+    )
+      .then((e) => e.json())
+      .catch((e) => {
+        console.error(e);
+        broadStatus.value = 4;
+        txResultMsg.value = e.message;
+        txResult.value = e.message;
+      });
+    if (txRes.tx) {
+      break;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+  }
   if (!txRes) {
     return;
   }
   broadStatus.value = 3;
+  txResultMsg.value = txRes.tx_response?.raw_log || txRes.message;
   txResult.value = JSON.stringify(txRes, undefined, 2);
 }
 </script>
@@ -331,9 +366,13 @@ async function broadcast() {
       <button @click="broadcast">Broadcast</button>
     </div>
     <div class="msg" v-else-if="broadStatus === 1">Broading</div>
-    <div class="msg" v-if="broadStatus === 2">TxHash: {{ txHash }}</div>
+    <div class="msg" v-if="broadStatus === 2">
+      <p>TxHash: {{ txHash }}</p>
+      <p>Waiting for confirmation...</p>
+    </div>
     <div class="msg" v-if="broadStatus === 3">
-      <pre>TxResult: {{ txResult }}</pre>
+      <p><b>TxResult:</b> {{ txResultMsg }}</p>
+      <pre>{{ txResult }}</pre>
     </div>
     <div class="msg" v-if="broadStatus === 4">Error: {{ txResult }}</div>
   </div>
@@ -384,6 +423,8 @@ body {
 
 .msg {
   margin-top: 16px;
+  width: 745px;
+  overflow: auto;
   pre {
     text-align: left;
   }
