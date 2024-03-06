@@ -28,10 +28,10 @@ const isKeplrReady = ref(false);
 const fm = reactive({
   description: {
     moniker: "A Node",
-    identity: "ABCDEFGH12345678",
-    website: "https://abcd.com/",
-    details: "Something about description of this node.",
-    securityContact: "support@abcd.com or WeChat@abcd",
+    identity: "",
+    website: "https://test.iconlake.com/",
+    details: "",
+    securityContact: "support@iconlake.com",
   },
   commission: {
     maxChangeRate: "0.010000000000000000",
