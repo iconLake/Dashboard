@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import { ref } from "vue";
 import CreateValidator from "./components/CreateValidator.vue";
+import Unjail from "./components/Unjail.vue";
 
 const nav = ref("cv");
 
@@ -13,10 +14,12 @@ const setNav = (navType: string) => {
   <div class="app">
     <div class="nav">
       <div class="item" @click="setNav('cv')">Create Validator</div>
+      <div class="item" @click="setNav('uj')">Unjail</div>
     </div>
     <div class="main">
       <div class="content">
         <CreateValidator v-if="nav === 'cv'" />
+        <Unjail v-if="nav === 'uj'" />
       </div>
     </div>
   </div>
