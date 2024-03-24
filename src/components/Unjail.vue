@@ -7,6 +7,8 @@ import {
   toBase64,
   fromBase64,
   toHex,
+toBech32,
+fromBech32,
 } from "@cosmjs/encoding";
 import { Window, Keplr, AccountData, BroadcastMode } from "@keplr-wallet/types";
 import {
@@ -42,7 +44,10 @@ async function init() {
   keplr = (window as Window).keplr!;
   await keplr?.enable(fm.chainId);
   signer = (await keplr.getOfflineSigner(fm.chainId).getAccounts())[0];
-  fm.validatorAddr = signer.address;
+  fm.validatorAddr = toBech32(
+      "iconlakevaloper",
+      fromBech32(signer.address).data
+    );
   const res = await fetch(
     `https://lcd.testnet.iconlake.com/cosmos/auth/v1beta1/accounts/${signer.address}`
   ).then((e) => e.json());
@@ -212,7 +217,7 @@ const txResultMsg = ref("");
 async function broadcast() {
   broadStatus.value = 1;
   const txHashBytes = await keplr
-    .sendTx(fm.chainId, txBytes.value, "async" as BroadcastMode)
+    .sendTx(fm.chainId, txBytes.value, "sync" as BroadcastMode)
     .catch((e) => {
       console.error(e);
       broadStatus.value = 4;
