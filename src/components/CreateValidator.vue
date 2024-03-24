@@ -290,7 +290,7 @@ const txResultMsg = ref("");
 async function broadcast() {
   broadStatus.value = 1;
   const txHashBytes = await keplr
-    .sendTx(fm.chainId, txBytes.value, "async" as BroadcastMode)
+    .sendTx(fm.chainId, txBytes.value, "sync" as BroadcastMode)
     .catch((e) => {
       console.error(e);
       broadStatus.value = 4;
