@@ -256,7 +256,7 @@ const signedTX = computed(() => {
                 mode: "SIGN_MODE_DIRECT",
               },
             },
-            sequence: "0",
+            sequence: `${fm.sequence}`,
           },
         ],
         fee: {
