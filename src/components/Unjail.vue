@@ -1,11 +1,9 @@
 <script setup lang="ts">
-import { MsgCreateValidator } from "cosmjs-types/cosmos/staking/v1beta1/tx";
+import { MsgUnjail } from "cosmjs-types/cosmos/slashing/v1beta1/tx";
 import { TxBody, AuthInfo, TxRaw } from "cosmjs-types/cosmos/tx/v1beta1/tx";
 import { encodePubkey } from "@cosmjs/proto-signing";
 import { Uint32 } from "@cosmjs/math";
 import {
-  toBech32,
-  fromBech32,
   toBase64,
   fromBase64,
   toHex,
@@ -26,25 +24,9 @@ let signer: AccountData;
 
 const isKeplrReady = ref(false);
 const fm = reactive({
-  description: {
-    moniker: "A Node",
-    identity: "",
-    website: "https://test.iconlake.com/",
-    details: "",
-    securityContact: "support@iconlake.com",
-  },
-  commission: {
-    maxChangeRate: "0.010000000000000000",
-    maxRate: "0.200000000000000000",
-    rate: "0.100000000000000000",
-  },
-  pubkey: "oxJ4lDdSSNHHhQ776UKdMIIhwsaD8YU3v4eLxQMP84s=",
-  memo: "",
-  minSelfDelegation: "1",
-  amount: "1000000LAKE",
+  validatorAddr: '',
   fee: "0.005LAKE",
-  delegatorAddress: "",
-  validatorAddress: "",
+  memo: "",
   accountNumber: "12",
   sequence: "0",
   chainId: "iconlake-testnet-1",
@@ -60,7 +42,7 @@ async function init() {
   keplr = (window as Window).keplr!;
   await keplr?.enable(fm.chainId);
   signer = (await keplr.getOfflineSigner(fm.chainId).getAccounts())[0];
-  fm.delegatorAddress = signer.address;
+  fm.validatorAddr = signer.address;
   const res = await fetch(
     `https://lcd.testnet.iconlake.com/cosmos/auth/v1beta1/accounts/${signer.address}`
   ).then((e) => e.json());
@@ -74,48 +56,20 @@ function onKeplrChange() {
   init();
 }
 
-function toIntRate(rate: string) {
-  const r = rate.replace(/^0\./, "").substring(0, 18);
-  const fixLen = 18 - r.length;
-  return r.replace(/^0*/, "") + "0".repeat(fixLen);
-}
-
 function toUlakeAmount(amount: string) {
   return Math.floor(parseFloat(amount) * 1000000).toString();
 }
 
 async function sign() {
-  const createMsg = MsgCreateValidator.encode({
-    description: {
-      moniker: fm.description.moniker,
-      identity: fm.description.identity,
-      website: fm.description.website,
-      details: fm.description.details,
-      securityContact: fm.description.securityContact,
-    },
-    commission: {
-      maxChangeRate: toIntRate(fm.commission.maxChangeRate), // 0.01
-      maxRate: toIntRate(fm.commission.maxRate), // 0.2
-      rate: toIntRate(fm.commission.rate), // 0.1
-    },
-    minSelfDelegation: fm.minSelfDelegation,
-    delegatorAddress: fm.delegatorAddress,
-    validatorAddress: fm.validatorAddress,
-    pubkey: encodePubkey({
-      type: "tendermint/PubKeyEd25519",
-      value: fm.pubkey,
-    }),
-    value: {
-      amount: toUlakeAmount(fm.amount),
-      denom: "ulake",
-    },
+  const msg = MsgUnjail.encode({
+    validatorAddr: fm.validatorAddr,
   }).finish();
 
   const bodyBytes = TxBody.encode({
     messages: [
       {
-        typeUrl: MsgCreateValidator.typeUrl,
-        value: createMsg,
+        typeUrl: MsgUnjail.typeUrl,
+        value: msg,
       },
     ],
     memo: fm.memo,
@@ -197,46 +151,14 @@ onBeforeUnmount(() => {
 
 watch(() => fm.chainId, init);
 
-watch(
-  () => fm.delegatorAddress,
-  () => {
-    fm.validatorAddress = toBech32(
-      "iconlakevaloper",
-      fromBech32(fm.delegatorAddress).data
-    );
-  }
-);
-
 const signedTX = computed(() => {
   return JSON.stringify(
     {
       body: {
         messages: [
           {
-            "@type": "/cosmos.staking.v1beta1.MsgCreateValidator",
-            description: {
-              moniker: fm.description.moniker,
-              identity: fm.description.identity,
-              website: fm.description.website,
-              security_contact: fm.description.securityContact,
-              details: fm.description.details,
-            },
-            commission: {
-              rate: fm.commission.rate,
-              max_rate: fm.commission.maxRate,
-              max_change_rate: fm.commission.maxChangeRate,
-            },
-            min_self_delegation: fm.minSelfDelegation,
-            delegator_address: fm.delegatorAddress,
-            validator_address: fm.validatorAddress,
-            pubkey: {
-              "@type": "/cosmos.crypto.ed25519.PubKey",
-              key: fm.pubkey,
-            },
-            value: {
-              denom: "ulake",
-              amount: toUlakeAmount(fm.amount),
-            },
+            "@type": "/cosmos.slashing.v1beta1.MsgUnjail",
+            validator_addr: fm.validatorAddr,
           },
         ],
         memo: fm.memo,
@@ -338,10 +260,6 @@ async function broadcast() {
           <label>{{ kC }}</label>
           <div>
             <input type="text" v-model="fm[k][kC]" />
-            <div class="help" v-if="kC === 'identity'">
-              It can be used to verify identity with systems like Keybase or
-              UPort.
-            </div>
           </div>
         </div>
       </div>
@@ -349,9 +267,6 @@ async function broadcast() {
         <label>{{ k }}</label>
         <div>
           <input type="text" v-model="fm[k]" />
-          <div class="help" v-if="k === 'pubkey'">
-            Get key by running `./iconlaked tendermint show-validator`.
-          </div>
         </div>
       </div>
     </div>
@@ -361,7 +276,7 @@ async function broadcast() {
   </div>
   <div v-if="isKeplrReady" class="rs">
     <h4>Signed TX</h4>
-    <textarea cols="90" rows="68">{{ signedTX }}</textarea>
+    <textarea cols="90" rows="48">{{ signedTX }}</textarea>
     <div class="btns" v-if="broadStatus === 0 || broadStatus === 4">
       <button @click="broadcast">Broadcast</button>
     </div>
